@@ -12,6 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.*/
 using UnityEngine;
+using Steamworks;
 using System.Collections.Generic;
 public class PersistData:MonoBehaviour {
 	public enum GT { QuickPlay = 0, Arcade = 1, Campaign = 2, Versus = 3, Training = 4, Challenge = 5, PlayerData = 6, Options = 7 }
@@ -59,6 +60,16 @@ public class PersistData:MonoBehaviour {
 		KEY_DELAY = saveInfo.savedOptions["keydelay"];
 		SetRes();
 		override2P = false;
+	public bool SetAchievement(string id) {
+		if(!SteamManager.Initialized) { return false; }
+		bool result = SteamUserStats.SetAchievement(id);
+		if(result) {
+			SteamUserStats.StoreStats();
+			Debug.Log ("Unlocked achievement " + id);
+		} else {
+			Debug.Log ("Failed to unlock achievement " + id);
+		}
+		return result;
 	}
 	#region "Tile Bank"
 	private List<GameObject> GameObjectBank;
