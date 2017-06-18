@@ -18,7 +18,13 @@ public class WinScreenController:StateController {
 	private GameObject winTextGO, pose;
 	public void Start() {
 		StateControllerInit(false);
-		if(PD.p1Char == PersistData.C.FuckingBalloon) { PD.MoveFromWinScreen(); return; }
+		if(PD.p1Char == PersistData.C.FuckingBalloon) {
+			if(PD.gameType == PersistData.GT.Arcade) {
+				PD.SetAchievement("BALLOONMAN");
+			}
+			PD.MoveFromWinScreen();
+			return;
+		}
 		if(PD.gameType == PersistData.GT.Challenge) {
 			SetUpUnlock(true);
 			return;
