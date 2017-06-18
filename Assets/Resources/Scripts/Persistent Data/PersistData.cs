@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.*/
 using UnityEngine;
 using Steamworks;
+using System.Threading;
 using System.Collections.Generic;
 public class PersistData:MonoBehaviour {
 	public enum GT { QuickPlay = 0, Arcade = 1, Campaign = 2, Versus = 3, Training = 4, Challenge = 5, PlayerData = 6, Options = 7 }
@@ -34,6 +35,10 @@ public class PersistData:MonoBehaviour {
 	public GameObject universalPrefab, universalPrefabCollider;
 	public string culture = "en";
 	public int KEY_DELAY;
+	private static SteamLeaderboard_t storyscore, storytime, endlessscore, endlesstime;
+	private static CallResult<LeaderboardFindResult_t> m_findResult;
+	private static CallResult<LeaderboardScoreUploaded_t> m_uploadResult;
+	private static Callback<UserStatsReceived_t> Callback_statsReceived;
 	void Start() {
 		Object.DontDestroyOnLoad(this);
 		universalPrefab = Resources.Load<GameObject>("Prefabs/Tile_NoCollider");
@@ -60,6 +65,36 @@ public class PersistData:MonoBehaviour {
 		KEY_DELAY = saveInfo.savedOptions["keydelay"];
 		SetRes();
 		override2P = false;
+		forceOnlinePause = false;
+		if(SteamManager.Initialized) {
+			m_findResult = new CallResult<LeaderboardFindResult_t>();
+			m_uploadResult = new CallResult<LeaderboardScoreUploaded_t>();
+			Callback_statsReceived = Callback<UserStatsReceived_t>.Create(OnGetUserStats);
+			intQueue = new List<KeyValuePair<string, int>>();
+			SteamAPICall_t h1 = SteamUserStats.FindLeaderboard("STORYMODESCORE");
+			m_findResult.Set(h1, StoryScoreUpload);
+			new Timer(timer_tick, null, 0, 1000);
+		}
+	}
+	#region "Steam"
+	private static void timer_tick(object state) { SteamAPI.RunCallbacks(); }
+	private static void StoryScoreUpload(LeaderboardFindResult_t pCallback, bool failure) { 
+		storyscore = pCallback.m_hSteamLeaderboard;
+		SteamAPICall_t h2 = SteamUserStats.FindLeaderboard("STORYMODETIME");
+		m_findResult.Set(h2, StoryTimeUpload);
+	}
+	private static void StoryTimeUpload(LeaderboardFindResult_t pCallback, bool failure) {
+		storytime = pCallback.m_hSteamLeaderboard;
+		SteamAPICall_t h3 = SteamUserStats.FindLeaderboard("ENDLESSMODESCORE");
+		m_findResult.Set(h3, EndlessScoreUpload);
+	}
+	private static void EndlessScoreUpload(LeaderboardFindResult_t pCallback, bool failure) { 
+		endlessscore = pCallback.m_hSteamLeaderboard;
+		SteamAPICall_t h4 = SteamUserStats.FindLeaderboard("ENDLESSMODETIME");
+		m_findResult.Set(h4, EndlessTimeUpload);
+	}
+	private static void EndlessTimeUpload(LeaderboardFindResult_t pCallback, bool failure) { endlesstime = pCallback.m_hSteamLeaderboard; }
+
 	public void SetArcadeWinAchivements(bool justWon, int startDiff) {
 		if(saveInfo.getArcadeVictories() >= 1) { SetAchievement("STANDARD_STORY"); }
 		if(saveInfo.getArcadeVictoryCharacterWhiteWins() == 10) { SetAchievement("STANDARD_ALL"); }
@@ -79,6 +114,70 @@ public class PersistData:MonoBehaviour {
 		}
 		return result;
 	}
+
+	private void OnGetUserStats(UserStatsReceived_t pCallback) {
+		foreach(KeyValuePair<string, int> b in intQueue) {
+			IncrementIntStat(b.Key, b.Value);
+		}
+		intQueue.Clear();
+	}
+
+	private bool alreadyCalled = false;
+	private List<KeyValuePair<string, int>> intQueue;
+
+	private void UpdateWinStats() {
+		switch(p1Char) {
+			case C.AliceAna: IncrementIntStat("ALICE", 1); break;
+			case C.Andrew: IncrementIntStat("ANDREW", 1); break;
+			case C.Depeche: IncrementIntStat("MODE", 1); break;
+			case C.Devin: IncrementIntStat("DEVIN", 1); break;
+			case C.George: IncrementIntStat("GEORGE", 1); break;
+			case C.Joan: IncrementIntStat("JOAN", 1); break;
+			case C.Laila: IncrementIntStat("LAILA", 1); break;
+			case C.Lars: IncrementIntStat("LARS", 1); break;
+			case C.Milo: IncrementIntStat("MILO", 1); break;
+			case C.MJ: IncrementIntStat("MJ", 1); break;
+			default: IncrementIntStat("OTHER", 1); break;
+		}
+		if(gameType != GT.Versus) { IncrementIntStat("MATCH_WINS", 1); }
+		IncrementIntStat("MATCH_TIMES", runningTime);
+	}
+	private bool IncrementIntStat(string id, int amount) {
+		if(!SteamManager.Initialized) { return false; }
+		int stat = 0;
+		if(!SteamUserStats.GetStat(id, out stat)) {
+			intQueue.Add(new KeyValuePair<string, int>(id, amount));
+			if(!alreadyCalled) {
+				Debug.Log ("Retrying " + id);
+				SteamUserStats.RequestCurrentStats();
+				alreadyCalled = true;
+			}
+			return false;
+			//Debug.Log ("Couldn't even get the data for " + id);
+		}
+		stat += amount;
+		bool result = SteamUserStats.SetStat(id, stat);
+		if(result) {
+			Debug.Log ("Set stat " + id + " to " + stat);
+			SteamUserStats.StoreStats();
+		} else {
+			Debug.Log ("Failed to set stat " + id);
+		}
+		return result;
+	}
+	public void SetEndlessScores() {
+		SetLeaderboard(endlessscore, runningScore);
+		SetLeaderboard(endlesstime, runningTime);
+	}
+	public void SetStoryScores() {
+		SetLeaderboard(storyscore, runningScore);
+		SetLeaderboard(storytime, runningTime);
+	}
+	private void SetLeaderboard(SteamLeaderboard_t board, int score) {
+		if(!SteamManager.Initialized) { return; }
+		SteamAPICall_t hSteamAPICall = SteamUserStats.UploadLeaderboardScore(board, ELeaderboardUploadScoreMethod.k_ELeaderboardUploadScoreMethodKeepBest, score, null, 0);
+	}
+	#endregion
 	#region "Tile Bank"
 	private List<GameObject> GameObjectBank;
 	public GameObject GetBankObject() {
@@ -478,13 +577,19 @@ public class PersistData:MonoBehaviour {
 		if(isTransitioning) { return; }
 		if(updateData) { runningTime = time; runningScore = score; }
 		won = !lost;
+		if(won) { UpdateWinStats(); }
 		if(p2Char == C.FuckingBalloon) {
-			if(won) { saveInfo.savedOptions["beatafuckingballoon"] = 1; }
+			if(won) {
+				saveInfo.savedOptions["beatafuckingballoon"] = 1;
+				SetAchievement("STORY_MASTER");
+				if(initialDifficulty >= 5) { SetAchievement("NEW_MASTER"); }
+			}
 			saveInfo.addPlayTime(gameType, runningTime);
 			if(winType > 0) {
 				won = true;
 				int prevComplet = saveInfo.CalculateGameCompletionPercent();
 				saveInfo.saveArcadeVictory(name, winType);
+				SetArcadeWinAchivements(won, initialDifficulty);
 				int newComplet = saveInfo.CalculateGameCompletionPercent();
 				if(prevComplet < 50 && newComplet >= 50) {
 					unlockNew = 1;
@@ -517,11 +622,22 @@ public class PersistData:MonoBehaviour {
 		bool advanceToWinScreenFromPuzzleScreen = false;
 		if(gameType == GT.QuickPlay || gameType == GT.Campaign) {
 			saveInfo.addPlayTime(gameType, runningTime);
+			if(gameType == GT.Campaign) {
+				if(time >= 900) { // 15 minutes
+					SetAchievement("DOUG_FRIEND");
+				}
+				SetEndlessScores();
+			}
 			StartCoroutine(ChangeScreenAndSave(GS.HighScore));
 			return;
 		} else if(gameType == GT.Challenge) {
 			int prevComplet = saveInfo.CalculateGameCompletionPercent();
-			if(won) { saveInfo.addToPuzzles(level, runningScore, runningTime); }
+			if(won) {
+				saveInfo.addToPuzzles(level, runningScore, runningTime);
+				if(saveInfo.getPuzzlesCompleted() == 32) {
+					SetAchievement("PUZZLE");
+				}
+			}
 			int newComplet = saveInfo.CalculateGameCompletionPercent();
 			if(prevComplet < 50 && newComplet >= 50) {
 				unlockNew = 1;
@@ -552,6 +668,7 @@ public class PersistData:MonoBehaviour {
 				won = true;
 				int prevComplet = saveInfo.CalculateGameCompletionPercent();
 				saveInfo.saveArcadeVictory(name, winType);
+				SetArcadeWinAchivements(won, initialDifficulty);
 				int newComplet = saveInfo.CalculateGameCompletionPercent();
 				if(prevComplet < 50 && newComplet >= 50) {
 					unlockNew = 1;
@@ -573,6 +690,7 @@ public class PersistData:MonoBehaviour {
 				saveInfo.addPlayTime(gameType, runningTime);
 				string name = GetPlayerSpritePath(p1Char);
 				saveInfo.saveArcadeVictory(name, winType);
+				SetArcadeWinAchivements(won, initialDifficulty);
 				StartCoroutine(ChangeScreenAndSave(GS.WinnerIsYou));
 			} else {
 				level++;
