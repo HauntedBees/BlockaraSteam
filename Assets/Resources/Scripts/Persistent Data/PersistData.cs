@@ -60,6 +60,14 @@ public class PersistData:MonoBehaviour {
 		KEY_DELAY = saveInfo.savedOptions["keydelay"];
 		SetRes();
 		override2P = false;
+	public void SetArcadeWinAchivements(bool justWon, int startDiff) {
+		if(saveInfo.getArcadeVictories() >= 1) { SetAchievement("STANDARD_STORY"); }
+		if(saveInfo.getArcadeVictoryCharacterWhiteWins() == 10) { SetAchievement("STANDARD_ALL"); }
+		if(saveInfo.hasAnyDragonWins()) { SetAchievement("STORY_DRAGON"); }
+		if(saveInfo.getArcadeVictoryCharacterSeptemberWins() == 10) { SetAchievement("DRAGON_ALL"); }
+		if(justWon && startDiff == 9) { SetAchievement("REEL_TUFF_GUY"); }
+		else if(justWon && startDiff > 5) { SetAchievement("TUFF_GUY"); }
+	}
 	public bool SetAchievement(string id) {
 		if(!SteamManager.Initialized) { return false; }
 		bool result = SteamUserStats.SetAchievement(id);

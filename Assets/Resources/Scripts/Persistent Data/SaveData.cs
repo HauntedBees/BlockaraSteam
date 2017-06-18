@@ -79,6 +79,29 @@ public class SaveData {
 		}
 		return 0;
 	}
+	public bool hasAnyDragonWins() {
+		for(int i = 0; i < characterWinsArcade.Count; i++) {
+			if(characterWinsArcade[i].Key == "Total" || characterWinsArcade[i].Key == "White" || characterWinsArcade[i].Key == "September") { continue; }
+			if(characterWinsArcade[i].Value == 2) { return true; }
+		}
+		return false;
+	}
+	public int getArcadeVictoryCharacterWhiteWins() {
+		int res = 0;
+		for(int i = 0; i < characterWinsArcade.Count; i++) {
+			if(characterWinsArcade[i].Key == "Total" || characterWinsArcade[i].Key == "White" || characterWinsArcade[i].Key == "September") { continue; }
+			res += (characterWinsArcade[i].Value > 0 ? 1 : 0);
+		}
+		return res;
+	}
+	public int getArcadeVictoryCharacterSeptemberWins() {
+		int res = 0;
+		for(int i = 0; i < characterWinsArcade.Count; i++) {
+			if(characterWinsArcade[i].Key == "Total" || characterWinsArcade[i].Key == "White" || characterWinsArcade[i].Key == "September") { continue; }
+			res += (characterWinsArcade[i].Value == 2 ? 1 : 0);
+		}
+		return res;
+	}
 	public int getArcadeVictorySummation() {
 		int res = 0;
 		for(int i = 0; i < characterWinsArcade.Count; i++) {
