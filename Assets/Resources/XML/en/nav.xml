@@ -49,7 +49,6 @@
 	<replacetile>Replace{0}{1}G</replacetile>
 	<tilereplaced>Tile{0}replaced!</tilereplaced>
 	<repairshield>Repair{0}{1}G</repairshield>
-	<shieldreplaced>Sheild{0}repaired!</shieldreplaced>
 	<shieldreplaced>Shield{0}repaired!</shieldreplaced>
 	<cantafford>You can't{0}afford that!</cantafford>
 	<presstocontinue>Press {1}{0}to confirm.</presstocontinue> <!-- {1} is the CONFIRM key here -->
