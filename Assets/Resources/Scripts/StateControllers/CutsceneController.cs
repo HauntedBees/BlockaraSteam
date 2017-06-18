@@ -116,6 +116,7 @@ public class CutsceneController:CharDisplayController {
 		bool isBossChar = PD.p1Char == PersistData.C.White || PD.p1Char == PersistData.C.September;
 		if(!isBossChar && (PD.level == 6 || PD.level == 8)) { 
 			if(PD.level == 6) { PD.winType = 1; } else { PD.winType = 2; }
+			PD.SetStoryScores();
 			PD.ChangeScreen(PersistData.GS.Credits);
 		} else { PD.ChangeScreen(PersistData.GS.Game); }
 	}
