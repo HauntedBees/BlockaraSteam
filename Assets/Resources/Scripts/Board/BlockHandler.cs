@@ -19,21 +19,27 @@ public class BlockHandler {
 	private List<int> vals;
 	private List<int> valsBot;
 	private int[] playerInts;
+	private System.Random myBaby;
+	private bool useSysRandom;
 	private PersistData.GT gameType;
 	private bool isTutorial;
 	private int balloonType, balloonNum;
-	public BlockHandler(PersistData PD, int lv) {
+	public BlockHandler(PersistData PD, int lv, bool setSeed = false, int seed = 0) {
 		gameType = PD.gameType;
 		balloonNum = (PD.p2Char == PersistData.C.FuckingBalloon)?2:(PD.p1Char == PersistData.C.FuckingBalloon)?1:-1;
 		balloonType = PD.balloonType;
 		isTutorial = PD.isTutorial;
+		if(setSeed) {
+			useSysRandom = true;
+			myBaby = new System.Random(seed);
+		}
 		if(gameType == PersistData.GT.Challenge) {
 			SetupPlayerInts();
 			SetupTilesForPuzzle(lv);
 		} else if(gameType != PersistData.GT.Training || !isTutorial) {
 			vals = new List<int>();
 			SetupPlayerInts();
-			for(int i = 0; i < 50; i++) { vals.Add(Random.Range(0, 3)); }
+			for(int i = 0; i < 50; i++) { vals.Add(Rand()); }
 		} else {
 			if(isTutorial) {
 				SetupPlayerInts();
@@ -44,7 +50,7 @@ public class BlockHandler {
 	private void SetupPlayerInts() { playerInts = new int[] {0, 0}; }
 	public int GetPlayerColor(int player) {
 		if(balloonNum == player) { return balloonType; }
-		if(gameType == PersistData.GT.Campaign && player == 2) { return Random.Range(0, 3); }
+		if(gameType == PersistData.GT.Campaign && player == 2) { return Rand(); }
 		if(gameType == PersistData.GT.Challenge) { return GetTileForPlayerPuzzle(player); }
 		if(gameType == PersistData.GT.Training && isTutorial) { return GetTileForPlayerPuzzle(player); }
 		int idx = player - 1;
@@ -52,17 +58,26 @@ public class BlockHandler {
 		if(pos >= vals.Count) {
 			int minPos = GetMinPos();
 			if(minPos > 0) {
-				while(minPos-- > 0) { vals.RemoveAt(0); vals.Add(Random.Range(0, 3)); }
+				while(minPos-- > 0) { vals.RemoveAt(0); vals.Add(Rand()); }
 				minPos = GetMinPos();
 				playerInts[0] -= minPos;
 				playerInts[1] -= minPos;
 			} else {
-				for(int i = 0; i < 10; i++) { vals.Add(Random.Range(0, 3)); }
+				for(int i = 0; i < 10; i++) { vals.Add(Rand()); }
 			}
 		}
 		pos = playerInts[idx]++;
 		return vals[pos];
 	}
+
+	private int Rand() {
+		if(useSysRandom) {
+			return myBaby.Next(3);
+		} else {
+			return Random.Range(0, 3);
+		}
+	}
+
 	private void SetupTilesForPuzzle(int lv) { // 0 is tutorial
 		XmlDocument doc = new XmlDocument();
 		TextAsset ta = Resources.Load<TextAsset>("XML/challenges");
@@ -81,9 +96,9 @@ public class BlockHandler {
 			if(res == -2) { if(Random.value < 0.5f) { return 2; } else { return 0; } }
 			if(res == -3) { if(Random.value < 0.5f) { return 1; } else { return 0; } }
 			if(res < 4) { return res; }
-			return Random.Range(0, 3);
+			return Rand();
 		}
-		if(playerInts[1] >= valsBot.Count) { return Random.Range(0, 3); }
+		if(playerInts[1] >= valsBot.Count) { return Rand(); }
 		return valsBot[playerInts[1]++];
 	}
 	private int GetMinPos() { return (playerInts[0] < playerInts[1]) ? playerInts[0] : playerInts[1]; }
