@@ -12,6 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.*/
 using UnityEngine;
+using Steamworks;
 using System.Collections.Generic;
 using System.Xml;
 public class PlayerDataTextWriter:ScoreTextFormatter {
@@ -23,6 +24,7 @@ public class PlayerDataTextWriter:ScoreTextFormatter {
 	private GameObject characters, goBack;
 	private Sprite[] charSheet;
 	private Vector2 bounds;
+	protected Callback<UserStatsReceived_t> Callback_statsReceived;
 	public PlayerDataTextWriter(TextMesh h, TextMesh c, TextMesh l, TextMesh r, TextMesh ff, List<XmlNode> cb, XmlNode top, GameObject ch, GameObject gb, PersistData p) {
 		headerText = h;
 		infoPaneTextCenter = c;
@@ -38,7 +40,43 @@ public class PlayerDataTextWriter:ScoreTextFormatter {
 		charSheet = Resources.LoadAll<Sprite>(SpritePaths.CharFullShots);
 		PD = p;
 		bounds = new Vector2(2.4f, 3.0f);
+		Callback_statsReceived = Callback<UserStatsReceived_t>.Create(OnGetUserStats);
 	}
+	private bool isScoreSet = false;
+	private void OnGetUserStats(UserStatsReceived_t pCallback) {
+		SteamUserStats.GetStat("GAMESCORE", out ePloids);
+		isScoreSet = true;
+		if(infoPaneTextCenter.text.Contains("......")) {
+			infoPaneTextCenter.text = infoPaneTextCenter.text.Replace("......", GetScoreText());
+		}
+	}
+	private int ePloids = 0;
+	private string GetScoreText() {
+		string str = "";
+		if(ePloids >= 9999) {
+			str = "Doug (_)";
+		} else if(ePloids >= 8500) {
+			str = "Beekeeper (_)";
+		} else if(ePloids >= 7000) {
+			str = "Divine Alchemist (_)";
+		} else if(ePloids >= 5000) {
+			str = "Mighty Magician (_)";
+		} else if(ePloids >= 2500) {
+			str = "Thaumaturge (_)";
+		} else if(ePloids >= 1000) {
+			str = "Clairvoyant (_)";
+		} else if(ePloids >= 500) {
+			str = "Spellcaster (_)";
+		} else if(ePloids >= 90) {
+			str = "Student (_)";
+		} else if(ePloids >= 50) {
+			str = "Delinquent (_)";
+		} else {
+			str = "Troublemaker (_)";
+		}
+		return str.Replace("_", ePloids.ToString());
+	}
+
 	private string GetXmlValue(string id) {
 		XmlNode elem = navDetails.SelectSingleNode(id);
 		return (elem == null ? "ERROR LOL" : elem.InnerText);
@@ -56,7 +94,16 @@ public class PlayerDataTextWriter:ScoreTextFormatter {
 		int pt = sd.getPlayTime("Puzzle");
 		int total = qpt + at + ct + vt + tt + pt;
 		
-		string res = GetXmlValue("totalplaytime") + ": " + ConvertSecondsToMinuteSecondFormat(total, true);
+		string res = GetXmlValue("eploids") + ": ";
+
+		if(isScoreSet) {
+			res += GetScoreText();
+		} else {
+			res += "......";
+			SteamUserStats.RequestCurrentStats();
+		}
+
+		res += "\n" + GetXmlValue("totalplaytime") + ": " + ConvertSecondsToMinuteSecondFormat(total, true);
 		
 		res += "\n" + GetXmlValue("quickplaytime") + ": " + ConvertSecondsToMinuteSecondFormat(qpt, true);
 		res += "\n" + GetXmlValue("arcadetime") + ": " + ConvertSecondsToMinuteSecondFormat(at, true);
