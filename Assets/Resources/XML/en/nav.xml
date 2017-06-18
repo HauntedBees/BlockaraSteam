@@ -15,6 +15,30 @@
 	<playerdata>Player Data</playerdata>
 	<options>Options</options>
 	<quit>Quit</quit>
+	<!-- Online Play -->
+	<online>2P Online</online>
+	<friend>Find Friend Room</friend>
+	<host>Host Friend Room</host>
+	<find>Matchmaking Mode</find>
+	<connecting>Connecting...</connecting>
+	<connfail>Connection Failed{0}Please Try Again</connfail>
+	<roomMake>Making Room</roomMake>
+	<roomFind>Finding Friends</roomFind>
+	<matchFind>Finding Game</matchFind>
+	<roomMakeFail>Failed to{0}make room.{0}Please Try Again</roomMakeFail>
+	<roomMakeSucc>Room Made!{0}Awaiting Friend.</roomMakeSucc>
+	<leftlobby>Search Cancelled</leftlobby>
+	<lefthost>Room Closed</lefthost>
+	<joining>Joining Room</joining>
+	<joinfail>Joining Failed</joinfail>
+	<friendlefthost>You have left</friendlefthost>
+	<hostfriendlefthost>Your friend left</hostfriendlefthost>
+	<hostleftfriend>The room has{0}been closed</hostleftfriend>
+	<ready>Ready ({0})</ready>
+	<onlinecancel>Cancel ({0})</onlinecancel>
+	<again>Again? ({0})</again>
+	<leave>Leave ({0})</leave>
+	<timeout>Connection Lost</timeout>
 	<!-- Main HUD -->
 	<time>Time</time>
 	<next>Next</next>

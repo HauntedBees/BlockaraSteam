@@ -12,11 +12,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.*/
 using UnityEngine;
+using Steamworks;
+using System.Collections.Generic;
 public class MatchOverController:CharDisplayController {
+	protected Callback<UserStatsReceived_t> Callback_statsReceived;
 	private ParticleSystem particles;
 	private ParticleSystem.Particle[] pars;
 	private CutsceneChar winner, loser;
 	private int applauseTimer;
+	private GameObject begin, beginText, cancel, cancelText, p1Ok, p2Ok;
+	private Sprite[] roundsSheet;
+	private bool isOnline;
+	private int onlineState;
+	private float lastTimeMessageReceived = 0.0f;
 	public void Start() {
 		StateControllerInit(false);
 		GameObject g = GameObject.Find("Confetti") as GameObject;
@@ -62,9 +70,140 @@ public class MatchOverController:CharDisplayController {
 		GetMeshText(new Vector3(x, 0.15f), PD.totalP1RoundScore.ToString(), f);
 		GetMeshText(new Vector3(x, -0.1f), PD.totalP2RoundScore.ToString(), f);
 		applauseTimer = Random.Range(200, 220);
+		if(PD.gameType == PersistData.GT.Online) {
+			FontData f2 = PD.mostCommonFont.Clone(); f.scale = 0.03f;
+			Sprite[] beginSheet = Resources.LoadAll<Sprite>(SpritePaths.LongButtons);
+			begin = GetGameObject(new Vector3(0.0f, -1.31f), "Again", beginSheet[0], true, "HUD");
+			beginText = GetMeshText(new Vector3(0.0f, -1.215f), string.Format(GetXmlValue(top, "again"), PD.GetP1InputName(InputMethod.KeyBinding.launch)), f2).gameObject;
+			
+			cancel = GetGameObject(new Vector3(0.0f, -1.7f), "Leave", beginSheet[0], true, "HUD");
+			cancelText = GetMeshText(new Vector3(0.0f, -1.61f), string.Format(GetXmlValue(top, "leave"), PD.GetP1InputName(InputMethod.KeyBinding.back)), f2).gameObject;
+			
+			roundsSheet = Resources.LoadAll<Sprite>(SpritePaths.RoundStateIcons);
+			
+			p1Ok = GetGameObject(new Vector3(-0.25f, -1f), "P1 Ready", roundsSheet[2], true, "HUD");
+			p2Ok = GetGameObject(new Vector3(0.25f, -1f), "P2 Ready", roundsSheet[2], true, "HUD");
+			isOnline = true;
+			onlineState = 0;
+			theyreReady = false;
+
+			Callback_statsReceived = Callback<UserStatsReceived_t>.Create(OnGetUserStats);
+
+			SteamUserStats.RequestCurrentStats();
+			SteamUserStats.RequestUserStats((CSteamID) PD.onlineOpponentId);
+			didP1win = p1Wins > p2Wins;
+			readyToEnd = false;
+			wantToEnd = false;
+		} else {
+			isOnline = false;
+		}
 	}
+	private int p1Score = -1, p2Score = -1;
+	private bool didP1win, readyToEnd, wantToEnd;
+	public void OnGetUserStats(UserStatsReceived_t pCallback) {
+		if(pCallback.m_steamIDUser == SteamUser.GetSteamID()) {
+			SteamUserStats.GetStat("GAMESCORE", out p1Score);
+		} else if(pCallback.m_steamIDUser == (CSteamID) PD.onlineOpponentId) {
+			SteamUserStats.GetUserStat((CSteamID) PD.onlineOpponentId, "GAMESCORE", out p2Score);
+		}
+		if(p1Score >= 0 && p2Score >= 0) {
+			int newScore = p1Score;
+			if(didP1win) {
+				newScore += Mathf.FloorToInt((float)p2Score / 9f) + 1;
+			} else {
+				newScore -= Mathf.FloorToInt(Mathf.Max (0, p2Score - Mathf.Floor((float)p1Score / 2f)) / 5);
+			}
+			if(newScore < 0) { newScore = 0; }
+			else if(newScore > 9999) { newScore = 9999; }
+			Debug.Log ("Score went from " + p1Score + " to " + newScore);
+			bool res = SteamUserStats.SetStat("GAMESCORE", newScore);
+			res = SteamUserStats.StoreStats();
+			readyToEnd = true;
+		}
+	}
+
+
+	private bool theyreReady;
+	private float timeToWait = 6.9f;
+	private void UpdateOnline() {
+		timeToWait -= Time.deltaTime;
+		if(wantToEnd && (readyToEnd || timeToWait <= 0f)) {
+			EndOnlineGame();
+		}
+		List<string> ms = GetMessages();
+		if(ms.Count > 0) {
+			foreach(string m in ms) {
+				lastTimeMessageReceived = Time.time;
+				if(m == "bye") {
+					wantToEnd = true;
+				} else if(m == "another") {
+					p2Ok.GetComponent<SpriteRenderer>().sprite = roundsSheet[1];
+					theyreReady = true;
+				}
+			}
+		}
+		if((Time.time - lastTimeMessageReceived) > 15f) {
+			SendMessage("bye");
+			wantToEnd = true;
+		}
+		if(onlineState == 0) { // awaiting player input
+			if(PD.controller.M_Cancel()) {
+				SendMessage("bye");
+				wantToEnd = true;
+			} else if(PD.controller.G_Launch() || PD.controller.Pause()) {
+				SendMessage("another");
+				onlineState = 1;
+				p1Ok.GetComponent<SpriteRenderer>().sprite = roundsSheet[1];
+				begin.SetActive(false);
+				beginText.SetActive(false);
+				cancel.SetActive(false);
+				cancelText.SetActive(false);
+			}
+		} else if(onlineState == 1) { // awaiting opponent input
+			if(theyreReady) { PD.MoveToOnlineBattle(); }
+		}
+	}
+	private void EndOnlineGame() {
+		onlineState = -1;
+		PD.ChangeScreen(PersistData.GS.CharSel);
+		SteamNetworking.CloseP2PSessionWithUser((CSteamID)PD.onlineOpponentId);
+		PD.onlineOpponentId = 0;
+	}
+	private void SendMessage(string hello) {
+		byte[] bytes = new byte[hello.Length * sizeof(char)];
+		using (System.IO.MemoryStream ms = new System.IO.MemoryStream(bytes)) {
+			using (System.IO.BinaryWriter b = new System.IO.BinaryWriter(ms)) {
+				b.Write(hello);
+			}
+		}
+		SteamNetworking.SendP2PPacket((CSteamID) PD.onlineOpponentId, bytes, (uint) bytes.Length, EP2PSend.k_EP2PSendReliable);
+	}
+	private List<string> GetMessages() {
+		uint size;
+		List<string> m = new List<string>();
+		while (SteamNetworking.IsP2PPacketAvailable(out size)) {
+			byte[] buffer = new byte[size];
+			uint bytesRead;
+			CSteamID remoteId;
+			if (SteamNetworking.ReadP2PPacket(buffer, size, out bytesRead, out remoteId)) {
+				using (System.IO.MemoryStream ms = new System.IO.MemoryStream(buffer)) {
+					using (System.IO.BinaryReader b = new System.IO.BinaryReader(ms)) {
+						string message = b.ReadString();
+						m.Add(message);
+					}
+				}
+			}
+		}
+		return m;
+	}
+
+
 	public void Update() {
 		if(--applauseTimer == 0) { PD.sounds.SetSoundAndPlay(SoundPaths.S_Applause + Random.Range(1, 7).ToString()); }
+		if(isOnline) {
+			UpdateOnline();
+			return;
+		}
 		if(PD.controller.G_Launch() || PD.controller.Pause() || clicker.isDown()) {
 			PD.sounds.SetSoundVolume(PD.GetSaveData().savedOptions["vol_s"] / 150.0f);
 			if(PD.gameType == PersistData.GT.Versus) {

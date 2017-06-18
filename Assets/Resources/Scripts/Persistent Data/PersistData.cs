@@ -16,16 +16,17 @@ using Steamworks;
 using System.Threading;
 using System.Collections.Generic;
 public class PersistData:MonoBehaviour {
-	public enum GT { QuickPlay = 0, Arcade = 1, Campaign = 2, Versus = 3, Training = 4, Challenge = 5, PlayerData = 6, Options = 7 }
+	public enum GT { QuickPlay = 0, Arcade = 1, Campaign = 2, Versus = 3, Training = 4, Challenge = 5, PlayerData = 6, Options = 7, Online = 8 }
 	public enum GS { Intro = 0, MainMenu = 1, CharSel = 2, Game = 3, PuzSel = 4, CutScene = 5, HighScore = 6, PlayerData = 7, Credits = 8, WinnerIsYou = 9, Options = 10,
-					 RoundWinner = 11, OpeningScene = 12 }
+					 RoundWinner = 11, OpeningScene = 12, OnlineGame = 13 }
 	public enum C { Null = -1, George = 0, Milo, Devin, MJ, Andrew, Joan, Depeche, Lars, Laila, AliceAna, White, September, Everyone, FuckingBalloon }
 	public C p1Char, p2Char;
 	private GS currentScreen;
 	public GT gameType;
 	public int unlockNew, demoPlayers, level, puzzleType, initialDifficulty, difficulty, rounds, currentRound, rowCount, rowCount2, totalRoundTime, totalP1RoundScore, totalP2RoundScore, winType, runningScore, runningTime, prevMainMenuLocationX, prevMainMenuLocationY, balloonType;
 	public bool won, useSpecial, isTutorial, isDemo, override2P, isTransitioning, aboutToFightAFuckingBalloon, usingMouse;
-	public bool usingGamepad1, usingGamepad2;
+	public bool usingGamepad1, usingGamepad2, isOnlineHost, forceOnlinePause;
+	public ulong onlineOpponentId;
 	public List<bool> playerOneWonRound;
 	public List<int> playerRoundScores, playerRoundTimes;
 	public InputMethod controller, controller2;
@@ -319,13 +320,20 @@ public class PersistData:MonoBehaviour {
 
 
 	public void SaveAndQuit(int time) { saveInfo.addPlayTime(gameType, time); StartCoroutine(SameScreenSave(true)); }
-	public void SaveAndReset(int time) { saveInfo.addPlayTime(gameType, time); StartCoroutine(ChangeScreenAndSave(GS.Game)); }
-	public void SaveAndMainMenu(int time) { saveInfo.addPlayTime(gameType, time); StartCoroutine(ChangeScreenAndSave(GS.MainMenu)); }
+	public void SaveAndReset(int time) {
+		saveInfo.addPlayTime(gameType, time);
+		if(gameType == GT.Online) {
+			StartCoroutine(ChangeScreenAndSave(GS.OnlineGame));
+		} else {
+			StartCoroutine(ChangeScreenAndSave(GS.Game));
+		}
+	}
+	public void SaveAndMainMenu(int time) { forceOnlinePause = false; saveInfo.addPlayTime(gameType, time); StartCoroutine(ChangeScreenAndSave(GS.MainMenu)); }
 	public void SaveAndPuzzleSelect(int time) { saveInfo.addPlayTime(gameType, time); StartCoroutine(ChangeScreenAndSave(GS.PuzSel)); }
 	public void GoToMainMenu() { ChangeScreen(GS.MainMenu); }
 	public void ChangeScreen(GS type) {
 		if(isTransitioning) { return; }
-		if(currentScreen == GS.Game) { ClearGameObjectBank(); }
+		if(currentScreen == GS.Game || currentScreen == GS.OnlineGame) { ClearGameObjectBank(); }
 		isTransitioning = true;
 		StartFade(1);
 		StartCoroutine(ChangeScreenInner(type));
@@ -387,7 +395,7 @@ public class PersistData:MonoBehaviour {
 	public void OnLevelWasLoaded() {
 		isTransitioning = false;
 		if(dontFade) { dontFade = false; return; }
-		if(currentScreen == GS.Game) { InitGameObjectBank(); }
+		if(currentScreen == GS.Game || currentScreen == GS.OnlineGame) { InitGameObjectBank(); }
 		StartFade(-1);
 		SetupSound();
 	}
@@ -425,6 +433,7 @@ public class PersistData:MonoBehaviour {
 			case GT.Arcade: return GS.CharSel;
 			case GT.Campaign: return GS.CharSel;
 			case GT.Versus: return GS.CharSel;
+			case GT.Online: return GS.CharSel;
 			case GT.Training: return GS.CharSel;
 			case GT.Challenge: return GS.PuzSel;
 			case GT.Options: return GS.Options;
@@ -506,6 +515,21 @@ public class PersistData:MonoBehaviour {
 			case "MJ": return "M.J.";
 		}
 		return p;
+	}
+	public void MoveToOnlineBattle() {
+		runningScore = 0; runningTime = 0;
+		rounds = 3;
+		totalRoundTime = 0;
+		totalP1RoundScore = 0;
+		totalP2RoundScore = 0;
+		useSpecial = false;
+		isTutorial = false;
+		rowCount = 6;
+		playerOneWonRound = new List<bool>();
+		playerRoundScores = new List<int>();
+		playerRoundTimes = new List<int>();
+		currentRound = 1;
+		StartCoroutine(ChangeScreenAndSave(GS.OnlineGame));
 	}
 	public void CharacterSelectConfirmation(bool moveToBalloon = false) {
 		runningScore = 0; runningTime = 0;

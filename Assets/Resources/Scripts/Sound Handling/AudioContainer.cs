@@ -32,6 +32,7 @@ public class AudioContainer {
 	public void SetClip(AudioClip c, bool looping = false) { source.clip = c; source.pitch = pitch; source.loop = looping; }
 	public void FadeIntoClip(AudioClip c) {
 		if(source == null) { SetClip(c); return; }
+		if(tempSource == null) { return; }
 		tempSource.clip = c;
 		tempSource.Play();
 		tempSource.DOFade(startvol, 0.5f);

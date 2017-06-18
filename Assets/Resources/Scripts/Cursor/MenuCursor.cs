@@ -29,6 +29,7 @@ public class MenuCursor:BoardCursorWar {
 		UpdateCursorPos(true);
 		FinishUpdate();
 	}
+	public void HalfSize() { cursor.transform.localScale = new Vector3(0.5f, 0.5f); }
 	override protected void InitGraphics() {
 		if(spriteSheetPos < 0) {
 			cursor = GetGameObject(Vector3.zero, "", (string.IsNullOrEmpty(spritePath)?null:Resources.Load<Sprite>(spritePath)), false, "HUDText");

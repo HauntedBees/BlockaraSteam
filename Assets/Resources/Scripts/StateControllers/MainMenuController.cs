@@ -113,18 +113,19 @@ public class MainMenuController:MenuController {
 		cursor = GetMenuCursor(2, 5, null, -0.5f, -1.32f, 0.2f, 0.2f, cursx, cursy);
 		cursor.SetVisibility(false);
 		float menuX = 0.0f, topy = 0.35f, dx = 0.8f, bottomdy = 1.2f;
-		menuButtons = new GameObject[9];
-		menuButtonHighlights = new GameObject[9];
-		texts = new TextMesh[9];
+		menuButtons = new GameObject[10];
+		menuButtonHighlights = new GameObject[10];
+		texts = new TextMesh[10];
 		AddButton(0, menuX - dx, topy, GetXmlValue(top, "quickplay"));
-		AddButton(1, menuX + dx, topy, GetXmlValue(top, "versus"));
-		AddButton(2, menuX - dx, topy - 0.3f, GetXmlValue(top, "arcade"));
-		AddButton(3, menuX + dx, topy - 0.3f, GetXmlValue(top, "campaign"));
+		AddButton(1, menuX + dx, topy, GetXmlValue(top, "arcade"));
+		AddButton(2, menuX - dx, topy - 0.3f, GetXmlValue(top, "versus"));
+		AddButton(3, menuX + dx, topy - 0.3f, GetXmlValue(top, "online"));
 		AddButton(4, menuX - dx, topy - 0.6f, GetXmlValue(top, "challenge"));
-		AddButton(5, menuX + dx, topy - 0.6f, GetXmlValue(top, PD.IsFirstTime()?"t_tutorial":"training"));
+		AddButton(5, menuX + dx, topy - 0.6f, GetXmlValue(top, "campaign"));
 		AddButton(6, menuX - dx, topy - 0.9f, GetXmlValue(top, "playerdata"));
-		AddButton(7, menuX + dx, topy - 0.9f, GetXmlValue(top, "options"));
-		AddButton(8, menuX, topy - bottomdy, GetXmlValue(top, "quit"));
+		AddButton(7, menuX + dx, topy - 0.9f, GetXmlValue(top, PD.IsFirstTime()?"t_tutorial":"training"));
+		AddButton(8, menuX - dx, topy - bottomdy, GetXmlValue(top, "options"));
+		AddButton(9, menuX + dx, topy - bottomdy, GetXmlValue(top, "quit"));
 	}
 
 	private void AddButton(int idx, float x, float y, string text) {
@@ -139,7 +140,7 @@ public class MainMenuController:MenuController {
 		PD.controller2 = null;
 		Destroy(cursor.cursor);
 		cursor = null;
-		for(int i = 0; i < 9; i++) { Destroy(texts[i].gameObject); Destroy(menuButtons[i]); Destroy(menuButtonHighlights[i]); }
+		for(int i = 0; i < 10; i++) { Destroy(texts[i].gameObject); Destroy(menuButtons[i]); Destroy(menuButtonHighlights[i]); }
 		texts = null;
 		SetupTitle();
 	}
@@ -174,7 +175,7 @@ public class MainMenuController:MenuController {
 		cursor.DoUpdate();
 		int oldIdx = selectedIdx;
 		int cY = cursor.getY(), cX = cursor.getX();
-		if(cY == 0) { cX = 0; }
+		//if(cY == 0) { cX = 0; }
 		selectedIdx = 8 - cY * 2 + cX;
 		if(selectedIdx != oldIdx) { menuButtonHighlights[oldIdx].SetActive(false); }
 		menuButtonHighlights[selectedIdx].SetActive(true);
@@ -182,20 +183,21 @@ public class MainMenuController:MenuController {
 		if(cursor.launchOrPause()) { isTransitioning = true; ConfirmSelectionAndAdvance(selectedIdx); }
 	}
 	private void ConfirmSelectionAndAdvance(int pos) {
-		int invertPos = 8 - pos;
+		int invertPos = 9 - pos;
 		PD.sounds.SetSoundAndPlay(SoundPaths.S_Menu_Confirm);
 		PD.prevMainMenuLocationX = cursor.getX();
 		PD.prevMainMenuLocationY = cursor.getY();
 		switch(invertPos) {
 			case 0: Application.Quit(); break;
 			case 1: PD.MainMenuConfirmation(PersistData.GT.Options); break;
-			case 2: PD.MainMenuConfirmation(PersistData.GT.PlayerData); break;
-			case 3: PD.MainMenuConfirmation(PersistData.GT.Training); break;
-			case 4: PD.MainMenuConfirmation(PersistData.GT.Challenge); break;
-			case 5: PD.MainMenuConfirmation(PersistData.GT.Campaign); break;
-			case 6: PD.MainMenuConfirmation(PersistData.GT.Arcade); break;
+			case 2: PD.MainMenuConfirmation(PersistData.GT.Training); break;
+			case 3: PD.MainMenuConfirmation(PersistData.GT.PlayerData); break;
+			case 4: PD.MainMenuConfirmation(PersistData.GT.Campaign); break;
+			case 5: PD.MainMenuConfirmation(PersistData.GT.Challenge); break;
+			case 6: PD.MainMenuConfirmation(PersistData.GT.Online); break;
 			case 7: PD.MainMenuConfirmation(PersistData.GT.Versus); break;
-			case 8: PD.MainMenuConfirmation(PersistData.GT.QuickPlay); break;
+			case 8: PD.MainMenuConfirmation(PersistData.GT.Arcade); break;
+			case 9: PD.MainMenuConfirmation(PersistData.GT.QuickPlay); break;
 			default: break;
 		}
 	}
@@ -241,7 +243,7 @@ public class MainMenuController:MenuController {
 		}
 	}
 	private int GetClickSelection() {
-		for(int i = 0; i < 9; i++) {
+		for(int i = 0; i < 10; i++) {
 			Vector3 pos = clicker.getPositionInGameObject(menuButtons[i]);
 			if(pos.z == 1) { return i; }
 		}

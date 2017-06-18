@@ -15,22 +15,26 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Xml;
 public class CharSelectController:MenuController {
-	private GameObject bg1, bg2, charactersel, begin, beginText, cancel, charSprite1, charSprite2, chooseText, charName1, charName2, char2StartText;
-	private OptionsSelector cursorOpDisplay;
+	private GameObject bg1, bg2, charactersel, begin, beginText, cancel, charSprite1, charSprite2, charName1, charName2, char2StartText, onlineBackground;
+	public GameObject chooseText;
+	public OptionsSelector cursorOpDisplay;
 	private OptionsCursor cursorOp;
 	private MenuCursor cursor2;
-	private bool conf1, conf1options, conf2;
+	private bool conf1, conf1options, conf2, inOnlineOptions;
 	private Sprite[] chars, beginSheet, cancelSheet, charNames;
 	private int p1_delay, p2_delay, p1eggState;
 	private Rect originalRect;
 	private XmlNode top;
 	private List<OptionInfo> options;
 	private float initX, dX;
+	private OnlineHelper onlineBuddy;
+	private MenuCursor lobbyCursor;
 	public void Start() {
 		StateControllerInit();
 		PD.sounds.SetVoiceAndPlay(SoundPaths.NarratorPath + "022", 0);
 		p1_delay = 0; p2_delay = 0; p1eggState = 0;
 		conf1 = false; conf1options = false; conf2 = true;
+		inOnlineOptions = false;
 		int completionPercent = PD.GetSaveData().CalculateGameCompletionPercent();
 		string spPath = SpritePaths.CharSelSheet, crPath = SpritePaths.CharSelCursors;
 		int crNum = 10; dX = 0.71f; initX = -3.2f;
@@ -49,12 +53,14 @@ public class CharSelectController:MenuController {
 		}
 		charactersel = GetGameObject(new Vector3(0.0f, -0.99f), "Character Select", Resources.Load<Sprite>(spPath), true, "HUD");
 		cursor = GetMenuCursor(crNum, 1, crPath, initX, -0.99f, dX, 0.0f, 0, 0, 1, 0, 0.2f);
-
-		beginSheet = Resources.LoadAll<Sprite>(SpritePaths.ShortButtons);
-		begin = GetGameObject(new Vector3(0.0f, 0.3f), "Begin", beginSheet[0], true, "HUD");
-		FontData f = PD.mostCommonFont.Clone(); f.scale = 0.045f;
+		
 		XmlNode top = GetXMLHead();
-		beginText = GetMeshText(new Vector3(0.0f, 0.45f), GetXmlValue(top, "begin"), f).gameObject;
+		FontData f = PD.mostCommonFont.Clone(); f.scale = 0.045f;
+		if(PD.gameType != PersistData.GT.Online) {
+			beginSheet = Resources.LoadAll<Sprite>(SpritePaths.ShortButtons);
+			begin = GetGameObject(new Vector3(0.0f, 0.3f), "Begin", beginSheet[0], true, "HUD");
+			beginText = GetMeshText(new Vector3(0.0f, 0.45f), GetXmlValue(top, "begin"), f).gameObject;
+		}
 
 		f.color = Color.white; f.scale = 0.035f;
 		chooseText = GetMeshText(new Vector3(0.0f, 1.11f), GetXmlValue(top, "chooseyourcharacter"), f).gameObject;
@@ -62,9 +68,14 @@ public class CharSelectController:MenuController {
 		int yMax = InitOptionsTextAndReturnValueCount();
 		cursorOp = GetOptionsCursor(1, yMax + 1, null, -0.2f, 0.45f, 0.0f, 0.25f, 0, yMax, 1);
 		cursorOpDisplay = gameObject.AddComponent<OptionsSelector>();
-		cursorOpDisplay.Setup(0.2f, 0.45f, 0.25f);
+		if(PD.gameType == PersistData.GT.Online) {
+			cursorOpDisplay.Setup(-0.9f, 0.45f, 0.25f);
+			cursorOpDisplay.SetWidth(1.8f);
+		} else {
+			cursorOpDisplay.Setup(0.2f, 0.45f, 0.25f);
+			cursorOpDisplay.SetWidth(PD.gameType == PersistData.GT.Training?0.85f:0.6f);
+		}
 		cursorOpDisplay.SetVisibility(false);
-		cursorOpDisplay.SetWidth(PD.gameType == PersistData.GT.Training?0.85f:0.6f);
 		InitPlayer1Select();
 		SetupBackgrounds();
 		ToggleDisplayOptions(false);
@@ -94,11 +105,19 @@ public class CharSelectController:MenuController {
 		options = new List<OptionInfo>();
 		float bottomY = 0.7f;
 		int currentY = 0;
+		if(PD.gameType == PersistData.GT.Online) {
+			options.Add(CreateOnlineOptionSpot(f, bottomY, "host", OptionType.HostFriend));
+			bottomY += 0.25f; currentY++;
+			options.Add(CreateOnlineOptionSpot(f, bottomY, "friend", OptionType.FindFriend));
+			bottomY += 0.25f; currentY++;
+			options.Add(CreateOnlineOptionSpot(f, bottomY, "find", OptionType.FindRoom));
+			bottomY += 0.25f; currentY++;
+		}
 		if(PD.gameType == PersistData.GT.QuickPlay || PD.gameType == PersistData.GT.Versus) {
 			options.Add(CreateOptionSpot(f, bottomY, "rounds", OptionType.Rounds));
 			bottomY += 0.25f; currentY++;
 		}
-		if(PD.gameType != PersistData.GT.Arcade) {
+		if(PD.gameType != PersistData.GT.Arcade && PD.gameType != PersistData.GT.Online) {
 			options.Add(CreateOptionSpot(f, bottomY, "colheight", OptionType.RowDepth));
 			bottomY += 0.25f; currentY++;
 		}
@@ -119,7 +138,7 @@ public class CharSelectController:MenuController {
 		return options.Count;
 	}
 
-	private enum OptionType { Rounds = 0, Special = 1, RowDepth = 2, Difficulty = 3, TrainingMode = 4 }
+	private enum OptionType { Rounds = 0, Special = 1, RowDepth = 2, Difficulty = 3, TrainingMode = 4, FindFriend = 5, HostFriend = 6, FindRoom = 7 }
 	private struct OptionInfo {
 		public GameObject titleText;
 		public GameObject collider;
@@ -143,13 +162,16 @@ public class CharSelectController:MenuController {
 			}
 		} 
 	}
-	private void ToggleDisplayOptions(bool show) {
-		begin.SetActive(show);
-		beginText.SetActive(show);
+	public void ToggleDisplayOptions(bool show) {
+		if(PD.gameType != PersistData.GT.Online) {
+			begin.SetActive(show);
+			beginText.SetActive(show);
+		}
 		for(int i = 0; i < options.Count; i++) {
 			options[i].titleText.SetActive(show);
 			options[i].tmesh.gameObject.SetActive(show);
 		}
+		cursorOpDisplay.SetVisibility(show);
 		chooseText.SetActive(!show);
 	}
 	private OptionInfo CreateOptionSpot(FontData f, float y, string text, OptionType type) {
@@ -161,6 +183,12 @@ public class CharSelectController:MenuController {
 		else if(type == OptionType.TrainingMode) { t.text = GetTrainingModeText(defaultValue); }
 		GameObject col = GetCollider("SpecCol", new Vector3(0.6f, y), 0.5555f, 1.15f);
 		return new OptionInfo(t, g.gameObject, col, type, defaultValue);
+	}
+	private OptionInfo CreateOnlineOptionSpot(FontData f, float y, string text, OptionType type) {
+		f.anchor = TextAnchor.MiddleCenter; f.align = TextAlignment.Center;
+		TextMesh g = GetMeshText(new Vector3(0.0f, y), GetXmlValue(top, text), f);
+		GameObject col = GetCollider("SpecCol", new Vector3(0.6f, y), 0.5555f, 1.15f);
+		return new OptionInfo(g, g.gameObject, col, type, 0);
 	}
 
 	private bool SwitchVal(int yplusone, int dir) {
@@ -181,9 +209,16 @@ public class CharSelectController:MenuController {
 	private void UpdateOptionsSelectorArrowVisibility() {
 		int cy = cursorOp.getY() - 1;
 		if(cy < 0) {
-			begin.GetComponent<SpriteRenderer>().sprite = beginSheet[1];
-			cursorOpDisplay.ToggleArrowVisibility(false);
-		} else {
+			if(PD.gameType == PersistData.GT.Online) {
+				cursorOp.setY(1);
+				cursorOpDisplay.UpdatePosition(1, true);
+				cy = 1;
+			} else {
+				begin.GetComponent<SpriteRenderer>().sprite = beginSheet[1];
+				cursorOpDisplay.ToggleArrowVisibility(false);
+			}
+		}
+		if(cy >= 0) {
 			cursorOpDisplay.ToggleArrowVisibility(true);
 			OptionInfo o = options[cy];
 			cursorOpDisplay.HideAnArrowIfAtCorner(o.curVal, o.minVal, o.maxVal);
@@ -219,6 +254,14 @@ public class CharSelectController:MenuController {
 		bg2.transform.localScale /= 2.5f;
 		UpdateBackground(false);
 		GetGameObject(Vector3.zero, "Background Cover", Resources.Load<Sprite>(SpritePaths.BGBlackFadeCharSel), false, "BG1");
+
+		onlineBackground = GetGameObject(new Vector3(2f, 0f), "Lobby Cover", Resources.Load<Sprite>(SpritePaths.BGBlackFadeCharSel), false, "BG1");
+
+		lobbyCursor = GetMenuCursor(1, 9, SpritePaths.RightArrows, 2f, 0.253f, 0f, 0.195f, 0, 8, 1, 0);
+		lobbyCursor.HalfSize();
+		lobbyCursor.SetVisibility(false);
+
+		onlineBackground.SetActive(PD.gameType == PersistData.GT.Online);
 	}
 	private void UpdateBackground(bool first) {
 		string path = "";
@@ -268,12 +311,21 @@ public class CharSelectController:MenuController {
 
 	public void Update() {
 		if(isTransitioning) { return; }
+		if(inOnlineOptions) {
+			if(onlineBuddy.initializedStatus < -1) {
+				inOnlineOptions = false;
+			} else {
+
+			}
+			return;
+		}
 		UpdateMouseInput();
 		if(PD.usingMouse && isClickingBack()) { SignalSuccess(); PD.GoToMainMenu(); }
 		HandlePlayer1Input();
 		HandlePlayer2Input();
 		if(conf1&&conf1options&&conf2) { AdvanceToGame(); }
 	}
+	public void ForceTransition() { isTransitioning = true; }
 	private void AdvanceToGame() {
 		isTransitioning = true;
 		PD.rounds = 0;
@@ -360,7 +412,9 @@ public class CharSelectController:MenuController {
 			return true;
 		}
 		bool pressed = false;
-		begin.GetComponent<SpriteRenderer>().sprite = beginSheet[0];
+		if(PD.gameType != PersistData.GT.Online) {
+			begin.GetComponent<SpriteRenderer>().sprite = beginSheet[0];
+		}
 		if(PD.usingMouse) { HandleOptionsClicker(); }
 		cursorOpDisplay.SetVisibility(true);
 		cursorOp.DoUpdate();
@@ -369,6 +423,8 @@ public class CharSelectController:MenuController {
 		if(cursorOp.launchOrPause()) {
 			if((PD.gameType == PersistData.GT.Versus && cursorOp.getY() == 1) || cursorOp.getY() == 0) {
 				conf1options = true;
+			} else if(PD.gameType == PersistData.GT.Online) {
+				HandleOnlineSelect();
 			} else {
 				cursorOp.setY(0);
 				pressed = true;
@@ -377,6 +433,24 @@ public class CharSelectController:MenuController {
 		UpdateOptionsSelectorArrowVisibility();
 		return pressed;
 	}
+	public void ForcePlayer2(int id) {
+		PD.controller2 = new InputMethod();
+		FullInitP2Select();
+		charSprite2.GetComponent<SpriteRenderer>().sprite = chars[id];
+		charName2.GetComponent<SpriteRenderer>().sprite = charNames[id];
+		SpeakCharacterName(id, 1);
+		PD.p2Char = (PersistData.C) id;
+		cursor2.SetVisibility(false);
+	}
+	public void HidePlayer2() {
+		Destroy(charSprite2);
+		Destroy(charName2);
+		Destroy(cursor2);
+		charSprite2 = null;
+		charName2 = null;
+		cursor2 = null;
+	}
+
 	private void HandlePlayer2Input() {
 		if(cursor2 != null) {
 			if(--p2_delay <= 0) {
@@ -494,7 +568,11 @@ public class CharSelectController:MenuController {
 				cursorOpDisplay.ClearArrows();
 			}
 			if(!clicker.isDown()) { break; }
-			SwitchVal(y + 1, dx);
+			if(PD.gameType == PersistData.GT.Online) {
+				HandleOnlineSelect();
+			} else {
+				SwitchVal(y + 1, dx);
+			}
 		}
 	}
 
@@ -523,5 +601,18 @@ public class CharSelectController:MenuController {
 			conf1options = true;	
 		}
 		return true;
+	}
+	private void HandleOnlineSelect() {
+		if(onlineBuddy == null) {
+			FontData f = PD.mostCommonFont.Clone();
+			f.color = Color.white; f.scale = 0.035f;
+			TextMesh m = GetMeshText(new Vector3(2.5f, 1.1f), "", f);
+			onlineBuddy = gameObject.AddComponent<OnlineHelper>();
+			onlineBuddy.Setup(cursorOp.getY(), m, lobbyCursor, this);
+		} else {
+			onlineBuddy.Refresh(cursorOp.getY());
+		}
+		PD.SetPlayer1(cursor.getX(), p1eggState == 3);
+		inOnlineOptions = true;
 	}
 }

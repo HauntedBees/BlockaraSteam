@@ -23,6 +23,7 @@ public class BoardCursorBot:BoardCursorActualCore {
 		switch(type) {
 			case (int)PersistData.GT.Training: AI = new TrainingAI(myBoard, theirBoard, this); break;
 			case (int)PersistData.GT.Challenge: AI = new TrainingAI(myBoard, theirBoard, this); break;
+			case (int)PersistData.GT.Online: AI = new OnlinePlayer(myBoard, theirBoard, this); break;
 			default: AI = new AIversion2(myBoard, theirBoard, this, difficulty); break;
 		}
 		if(type == (int)PersistData.GT.Training && difficulty == 2) { AI.forceState(3); }
@@ -48,6 +49,7 @@ public class BoardCursorBot:BoardCursorActualCore {
 	override public void FreezyPop(int i) { AI.delay = i; }
 	#endregion
 	#region "Control Execution"
+	public void PushAction(string a) { ((OnlinePlayer)AI).PushAction(a); }
 	public void forceAIState(int i) { if(i < 0) { AI.ToggleInactive(); return; } AI.delay = 0; AI.forceState(i); }
 	public override bool shiftLeft() { return (memAction != null && memAction.shift < 0 && !memAction.shiftall); }
 	public override bool shiftRight() { return (memAction != null && memAction.shift > 0 && !memAction.shiftall); }

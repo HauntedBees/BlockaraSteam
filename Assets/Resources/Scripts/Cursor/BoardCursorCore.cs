@@ -18,6 +18,7 @@ public class BoardCursorCore:InputCore {
 	public float xOffset;
 	protected int x;
 	protected int y;
+	public int dx = 0, dy = 0;
 	protected int boardwidth;
 	public int boardheight;
 	protected int prevx;
@@ -51,6 +52,8 @@ public class BoardCursorCore:InputCore {
 	virtual public void DoUpdate(int max = -1) {}
 	protected void UpdateCursorPos(bool skipTween = false) {
 		if(!isShown) { return; }
+		dx = x - prevx;
+		dy = y - prevy;
 		if(prevx == x && prevy == y) { moved = false; return; }
 		moved = true;
 		Vector3 pos = getPos(x, y);

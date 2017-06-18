@@ -12,9 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.*/
 using System;
+[System.Serializable]
 public class AIAction {
 	public int dx, dy, newx, newy, shift;
 	public bool launch, shiftall;
+	public AIAction() {}
 	public AIAction(int dx, int dy, int shift = 0, bool launch = false, bool shiftall = false, int newx = -1, int newy = -1) {
 		this.dx = dx;
 		this.dy = dy;
@@ -25,4 +27,3 @@ public class AIAction {
 		this.shiftall = shiftall;
 	}
 }
-

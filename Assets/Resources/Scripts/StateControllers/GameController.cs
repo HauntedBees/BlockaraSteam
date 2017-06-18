@@ -14,27 +14,30 @@ limitations under the License.*/
 using UnityEngine;
 using System.Collections.Generic;
 public class GameController:CharDisplayController {
-	private Countdown cd;
-	private bool player1Human, player2Human, specialMode, firstLaunch, paused, gameOver, usingTouchControls;
-	private int width, height, pauseTimer, endCounter, demoCountdown;
-	private CutsceneChar actor1, actor2;
-	private BoardWar board1, board2;
-	private BoardMirror mirror1, mirror2;
-	private BoardCursorActualCore cursor1, cursor2;
-	private BoardCursorMirror cursormirror1, cursormirror2;
-	private InGameHUD hud;
-	private GameObject pauseButton, pauseText;
-	private EndArcadeMatchOverlay end;
-	private BlockHandler bh;
-	private List<ZappyGun> zaps;
-	private CampaignHandler campaign;
-	private TutorialHelper tutorialAssist;
-	private GameTouchHandler touchHandler;
-	private Sprite[] pauseButtonSheet;
-	private List<GameObject> roundLabels;
-	private List<ZappyGun> zapsToDelete;
-	private KeyCode medicKey;
+	protected Countdown cd;
+	protected bool player1Human, player2Human, specialMode, firstLaunch, paused, gameOver, usingTouchControls;
+	protected int width, height, pauseTimer, endCounter, demoCountdown;
+	protected CutsceneChar actor1, actor2;
+	protected BoardWar board1, board2;
+	protected BoardMirror mirror1, mirror2;
+	protected BoardCursorActualCore cursor1, cursor2;
+	protected BoardCursorMirror cursormirror1, cursormirror2;
+	protected InGameHUD hud;
+	protected GameObject pauseButton, pauseText;
+	protected EndArcadeMatchOverlay end;
+	protected BlockHandler bh;
+	protected List<ZappyGun> zaps;
+	protected CampaignHandler campaign;
+	protected TutorialHelper tutorialAssist;
+	protected GameTouchHandler touchHandler;
+	protected Sprite[] pauseButtonSheet;
+	protected List<GameObject> roundLabels;
+	protected List<ZappyGun> zapsToDelete;
+	protected KeyCode medicKey;
 	public void Start() {
+		DoTheActualSetup();
+	}
+	protected virtual void DoTheActualSetup() {
 		StateControllerInit(false);
 		usingTouchControls = PD.GetSaveData().savedOptions["touchcontrols"] == 1;
 		firstLaunch = true;
@@ -51,6 +54,8 @@ public class GameController:CharDisplayController {
 		float p1Xoffset = (player2Human || (PD.isDemo && PD.demoPlayers == 2)) ? -10.1f : (PD.IsLeftAlignedHUD()?-1.5f:-5.5f), p2Xoffset = 3.0f;
 		CreateBoards(p1Xoffset, p2Xoffset);
 		SetUpHUDAndScores();
+		if(PD.runningScore > 0) { board1.AddToScore(PD.runningScore); }
+		if(PD.runningTime > 0) { hud.SetTimeWithSeconds(PD.runningTime); }
 		if(PD.gameType == PersistData.GT.Challenge) { (board1 as BoardWarPuzzlePlayer).unlockedRow = (hud as PuzzleHUD).GetUnlockedRow(); }
 		cursor1 = CreatePlayerCursor(player1Human, p1Xoffset, 1, board1, board2);
 		cursor2 = CreatePlayerCursor(player2Human || PD.override2P, p2Xoffset, 2, board2, board1, PD.override2P);
@@ -62,11 +67,11 @@ public class GameController:CharDisplayController {
 		mirror1.RefreshGraphics();
 		mirror2.RefreshGraphics();
 		SetupMouseControls(p1Xoffset);
-
+		
 		if(!PD.isDemo) {
 			if(PD.gameType == PersistData.GT.Campaign) { 
 				campaign = new CampaignHandler(PD, board1 as BoardWarSpecial, board2 as BoardWarCampaign, 
-				  			mirror2 as BoardMirrorSpecial, cursor1 as BoardCursorWar, cursor2 as BoardCursorBot, hud as CampaignHUD, GetXMLHead());
+				                               mirror2 as BoardMirrorSpecial, cursor1 as BoardCursorWar, cursor2 as BoardCursorBot, hud as CampaignHUD, GetXMLHead());
 			}
 			pauseButtonSheet = Resources.LoadAll<Sprite>(SpritePaths.ShortButtons);
 			pauseButton = GetGameObject(player2Human ? (new Vector3(0.0f, -0.1f)):(new Vector3(2.5f, 0.7f)), "Pause Button", pauseButtonSheet[0], true, "HUD");
@@ -80,8 +85,8 @@ public class GameController:CharDisplayController {
 			mouseObjects.Add(pauseText);
 		} else { demoCountdown = 1800; }
 	}
-	private void SetupCountdown() { cd = ScriptableObject.CreateInstance("Countdown") as Countdown; cd.Setup(PD); }
-	private void SetupActors() {
+	protected void SetupCountdown() { cd = ScriptableObject.CreateInstance("Countdown") as Countdown; cd.Setup(PD); }
+	protected void SetupActors() {
 		bool is2p = (player2Human || (PD.isDemo && PD.demoPlayers == 2));
 		float posx = is2p?3.0f:2.35f, posy = is2p?-1.2f:-0.8f, scale = is2p?0.22f:0.33f;
 		actor1 = CreateActor(PD.GetPlayerSpritePath(PD.p1Char), new Vector3(-posx, posy), false, false, true);
@@ -97,7 +102,7 @@ public class GameController:CharDisplayController {
 			if(PD.gameType == PersistData.GT.Campaign || PD.gameType == PersistData.GT.Challenge || PD.gameType == PersistData.GT.Training) { actor2.Hide(); }
 		}
 	}
-	private void SetupRoundDisplay() {
+	protected void SetupRoundDisplay() {
 		roundLabels = new List<GameObject>();
 		if(PD.rounds == 1) { return; }
 		Sprite[] roundSheet = Resources.LoadAll<Sprite>(SpritePaths.RoundStateIcons);
@@ -108,25 +113,25 @@ public class GameController:CharDisplayController {
 			GenerateRoundDisplayColumn(roundSheet, PD.IsLeftAlignedHUD() ? -1.3f : 1.3f, 1.85f);
 		}
 	}
-	private void GenerateRoundDisplayColumn(Sprite[] sheet, float x, float y, bool playerOne = true) {
+	protected void GenerateRoundDisplayColumn(Sprite[] sheet, float x, float y, bool playerOne = true) {
 		for(int i = 1; i < PD.rounds; i++) {
 			int frame = 0;
 			if(i < PD.currentRound) { frame = (PD.playerOneWonRound[i - 1] == playerOne) ? 1 : 2; }
 			roundLabels.Add(GetGameObject(new Vector3(x, y - 0.19f * (i - 1)), "round" + i + " results for p" + (playerOne?1:2), sheet[frame], false, "HUDText"));
 		}
 	}
-	private void CreateBoards(float p1Xoffset, float p2Xoffset) {
+	protected void CreateBoards(float p1Xoffset, float p2Xoffset) {
 		paused = false; gameOver = false;
 		board1 = CreateBoard(1, p1Xoffset);
 		board2 = CreateBoard(2, p2Xoffset);
 	}
-	private void CreateMirrors(float p1Xoffset, float p2Xoffset) {
+	protected void CreateMirrors(float p1Xoffset, float p2Xoffset) {
 		mirror1 = CreateBoardMirror(1, board1, board2, player2Human || (PD.isDemo && PD.demoPlayers == 2));
 		mirror2 = CreateBoardMirror(2, board2, board1);
 		cursormirror1 = CreateMirrorCursor(p2Xoffset, 1, cursor1);
 		cursormirror2 = CreateMirrorCursor(p1Xoffset, 2, cursor2);
 	}
-	private void SetUpHUDAndScores() {
+	protected void SetUpHUDAndScores() {
 		if(PD.gameType == PersistData.GT.Challenge) {
 			GameObject g = new GameObject("PuzzleHUD");
 			hud = g.AddComponent<PuzzleHUD>();
@@ -146,16 +151,14 @@ public class GameController:CharDisplayController {
 				tutorialAssist.MoveHighlightToPosition(board1.GetScreenPosFromXY(4, 5)); }
 			else { hud.Setup(1); }
 		}
-		if(PD.runningScore > 0) { board1.AddToScore(PD.runningScore); }
-		if(PD.runningTime > 0) { hud.SetTimeWithSeconds(PD.runningTime); }
 	}
-	private void SetupEasterEgg() {
+	protected void SetupEasterEgg() {
 		if(PD.isDemo) { return; }
 		if(!PD.IsKeyInUse((int)KeyCode.E)) { medicKey = KeyCode.E; }
 		else if(!PD.IsKeyInUse((int)KeyCode.Alpha1)) { medicKey = KeyCode.Alpha1; }
 		else { medicKey = KeyCode.CapsLock; }
 	}
-	private void SetupMouseControls(float xOffset) {
+	protected void SetupMouseControls(float xOffset) {
 		touchHandler = gameObject.AddComponent<GameTouchHandler>();
 		touchHandler.Initialize(height, xOffset);
 		cursor1.AttachTouchHandler(touchHandler);
@@ -201,7 +204,7 @@ public class GameController:CharDisplayController {
 		c.Setup(parent, th, PD.gameType != PersistData.GT.Training && PD.gameType != PersistData.GT.Challenge && (player == 2 || player2Human || (PD.isDemo && PD.demoPlayers == 2)));
 		return c;
 	}
-	private BoardCursorActualCore CreatePlayerCursor(bool isHuman, float offset, int player, BoardWar b1, BoardWar b2, bool force2P = false) {
+	protected BoardCursorActualCore CreatePlayerCursor(bool isHuman, float offset, int player, BoardWar b1, BoardWar b2, bool force2P = false) {
 		BoardCursorActualCore c;
 		if(isHuman || force2P) {
 			if(tutorialAssist != null) {
@@ -247,11 +250,18 @@ public class GameController:CharDisplayController {
 	}
 
 	public void Update() {
-		if(PD.isTransitioning) { return; }
-		if(ExitDemoIfNeeded()) { return; }
+		ActualUpdate();
+	}
+	protected virtual bool ActualUpdate() {
+		if(PD.isTransitioning) { return false; }
+		if(ExitDemoIfNeeded()) { return false; }
+		if((Time.time - lastPausePress) > 2f) {
+			pausePresses = 0;
+		}
+		if(Input.GetKeyDown(KeyCode.End)) { board2.BeDefeated(); }
 		UpdateMouseInput();
 		EasterEggsArentSoEasteryWhenTheCodeIsOpenSourceIsItYouFuckdummy();
-		if(HandleCountdown()) { return; }
+		if(HandleCountdown()) { return false; }
 		bool clickedPause = HandlePauseButton();
 		if(tutorialAssist != null) { tutorialAssist.DoUpdate(cursor1, cursor2); }
 		if(PD.gameType == PersistData.GT.Campaign) {
@@ -268,13 +278,13 @@ public class GameController:CharDisplayController {
 			} else if(wasInCampaignShop && !campaign.inCampaignShop) {
 				pauseText.GetComponent<TextMesh>().text = GetXmlValue(GetXMLHead(), "pause");
 			}
-			if(returnHere) { return; }
+			if(returnHere) { return false; }
 			if(campaign.playerDied) { HandleVictory(); }
 		} else {
 			if(board1.IsDead() || board2.IsDead()) { HandleVictory(); }
 		}
 		UpdateTweens();
-		if(HandleGameOver()) { return; }
+		if(HandleGameOver()) { return false; }
 		if(!HandlePause()) {
 			UpdateCursors();
 			UpdateBoards();
@@ -291,8 +301,14 @@ public class GameController:CharDisplayController {
 		} else {
 			hud.DoUpdate(paused, board1.GetScore(), board2.GetScore());
 		}
+		return true;
 	}
-	private void EasterEggsArentSoEasteryWhenTheCodeIsOpenSourceIsItYouFuckdummy() { if(PD.isDemo) { return; } if(Input.GetKeyDown(medicKey)) { actor1.SayThingFromXML("082"); } }
+	protected virtual void EasterEggsArentSoEasteryWhenTheCodeIsOpenSourceIsItYouFuckdummy() { 
+		if(PD.isDemo) { return; } 
+		if(Input.GetKeyDown(medicKey)) {
+			actor1.SayThingFromXML("082");
+		}
+	}
 	private bool HandlePauseButton() {
 		if(PD.isDemo || pauseButton == null) { return false; }
 		Vector3 p = clicker.getPositionInGameObject(pauseButton);
@@ -314,7 +330,7 @@ public class GameController:CharDisplayController {
 		return false;
 	}
 	private bool HandleCountdown() { cd.DoUpdate(); return !cd.goDisplayed; }
-	private bool HandleGameOver() {
+	protected virtual bool HandleGameOver() {
 		if(!gameOver || (PD.gameType == PersistData.GT.Challenge && board1.IsDead())) { return false; }
 		if(((board1.IsKeyPressAccepted() && cursor1.launchOrPause()) || clicker.isDown()) && end == null) { 
 			if(PD.gameType == PersistData.GT.Challenge) { PD.DoWin(board1.GetScore(), (hud as PuzzleHUD).GetRemainingMoves(), board1.IsDead()); }
@@ -322,13 +338,26 @@ public class GameController:CharDisplayController {
 		}
 		return true;
 	}
-	private bool HandlePause(bool mouseClick = false) {
-		if(isTransitioning) { return paused; }
+	private int pausePresses = 0;
+	private float lastPausePress = 0f;
+	protected bool HandlePause(bool mouseClick = false) {
+		if(isTransitioning || (PD.gameType == PersistData.GT.Online && !PD.forceOnlinePause)) {
+			if(PD.gameType == PersistData.GT.Online && (cursor1.pause() || mouseClick)) {
+				pausePresses++;
+				lastPausePress = Time.time;
+				if(pausePresses > 3) {
+					PD.SaveAndMainMenu(hud.GetTimeInSeconds());
+				}
+			}
+			return paused;
+		}
 		if(!paused) {
 			if(cursor1.pause() || mouseClick) { hud.pausePresser = 1; paused = true; PD.sounds.SetSoundAndPlay(SoundPaths.S_Menu_Pause); }
 			else if(cursor2.pause()) { hud.pausePresser = 2; paused = true; PD.sounds.SetSoundAndPlay(SoundPaths.S_Menu_Pause); }
 		} else {
-			if(hud.pauseMenu == null) { return paused; }
+			Debug.Log("A");
+			if(hud.pauseMenu == null) { Debug.Log("X"); return paused; }
+			Debug.Log(hud.pauseMenu.state);
 			switch(hud.pauseMenu.state) {
 				case 1: PD.sounds.SetSoundAndPlay(SoundPaths.S_Menu_Confirm); isTransitioning = true; PD.SaveAndQuit(hud.GetTimeInSeconds()); break;
 				case 2: PD.sounds.SetSoundAndPlay(SoundPaths.S_Menu_Confirm);

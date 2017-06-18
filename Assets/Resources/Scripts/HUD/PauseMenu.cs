@@ -15,7 +15,7 @@ using UnityEngine;
 using System.Xml;
 public class PauseMenu:RetryPauseMenu {
 	public int maxy;
-	public void Initialize(int p) {
+	public virtual void Initialize(int p) {
 		StateControllerInit(false);
 		InitButtonSprites();
 		player = p;
@@ -24,7 +24,7 @@ public class PauseMenu:RetryPauseMenu {
 		menu = GetGameObject(Vector3.zero, "Pause Menu", Resources.LoadAll<Sprite>(SpritePaths.PauseMenus)[PD.gameType == PersistData.GT.Challenge?0:1], true, "Pause HUD");
 		AddTextToMenu();
 	}
-	private void AddTextToMenu() {
+	protected virtual void AddTextToMenu() {
 		float x = 0.0f, topy = (PD.gameType == PersistData.GT.Challenge) ? 0.75f : 0.61f;
 		XmlNode top = GetXMLHead();
 		FontData f = PD.mostCommonFont.Clone(); f.layerName = "Pause HUD Text";

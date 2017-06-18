@@ -102,7 +102,11 @@ public class InGameHUD:All {
 		if(hidden) { return; }
 		if(newPauseState && !pausing) {
 			GameObject g = new GameObject("pauseHandler");
-			pauseMenu = g.AddComponent<PauseMenu>();
+			if(PD.gameType == PersistData.GT.Online) {
+				pauseMenu = g.AddComponent<ConnectionLostMenu>();
+			} else {
+				pauseMenu = g.AddComponent<PauseMenu>();
+			}
 			pauseMenu.Initialize(pausePresser);
 		} else if(!newPauseState && pausing) {
 			pauseMenu.CleanUp();

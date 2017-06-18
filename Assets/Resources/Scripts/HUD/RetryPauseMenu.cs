@@ -21,7 +21,13 @@ public class RetryPauseMenu:MenuController {
 	public void Update() {
 		menuButtons[selectedIdx].GetComponent<SpriteRenderer>().sprite = buttonSheet[0];
 		HandleMouse();
-		if(cursor.launchOrPause()) { state = cursor.getY() + 1; }
+		if(cursor.launchOrPause()) { 
+			if(this is ConnectionLostMenu) {
+				state = 2;
+			} else {
+				state = cursor.getY() + 1;
+			}
+		}
 		cursor.DoUpdate();
 		selectedIdx = cursor.boardheight - cursor.getY() - 1;
 		menuButtons[selectedIdx].GetComponent<SpriteRenderer>().sprite = buttonSheet[1];
